@@ -173,9 +173,6 @@
       flex-direction: column;
       gap: 4px;
     }
-    .field.full {
-      grid-column: 1 / -1;
-    }
     .field label {
       font-size: 11px;
       color: #94a3b8;
@@ -364,7 +361,7 @@
 
     const defaultState = {
       rateMode: "realtime",
-      restWeekday: 5, // 0=Sun .. 5=Fri, 6=Sat
+      restWeekday: 5,
       rotationCycleMonths: 2,
       rotationAnchor: "2026-11-21",
       anchorShiftType: "day",
