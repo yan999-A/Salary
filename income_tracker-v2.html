@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工厂实时收益与排班看板</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1e293b 0%, #090d16 100%);
+      color: #f8fafc;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .app {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card {
+      background: rgba(20, 28, 45, 0.94);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.42);
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .badge.ot15 {
+      background: rgba(251, 191, 36, 0.16);
+      color: #fbbf24;
+    }
+    .badge.ot20 {
+      background: rgba(52, 211, 153, 0.16);
+      color: #34d399;
+    }
+    .badge.rest {
+      background: rgba(168, 85, 247, 0.18);
+      color: #c084fc;
+    }
+    .clock-text {
+      font-size: 12px;
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+    .sub {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .seg-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: #0b1120;
+      padding: 5px;
+      border-radius: 12px;
+      margin-top: 14px;
+    }
+    .seg-btn {
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      padding: 8px 6px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .seg-btn.active {
+      background: #38bdf8;
+      color: #090d16;
+      font-weight: 700;
+    }
+    .hero-box {
+      margin-top: 14px;
+      background: rgba(11, 17, 32, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 16px;
+      padding: 18px 14px;
+      text-align: center;
+    }
+    .hero-num {
+      font-size: 34px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.4px;
+    }
+    .hero-unit {
+      font-size: 13px;
+      color: #38bdf8;
+      margin-top: 4px;
+    }
+    .hero-detail {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 8px;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .stat-box {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #f8fafc;
+    }
+    .stat-sub {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field.full {
+      grid-column: 1 / -1;
+    }
+    .field label {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: #090d16;
+      color: #f8fafc;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(11, 17, 32, 0.75);
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .toggle-btn {
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .toggle-btn.on {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: #fff;
+      font-weight: 600;
+    }
+    .note {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <div class="header-top">
+        <span class="badge" id="statusBadge">计算中...</span>
+        <span class="clock-text" id="clockText">--</span>
+      </div>
+      <h1>工厂每分钟收益看板</h1>
+      <p class="sub">自定义底薪 · 21.75 天/8h 折算时薪 · 自定义倒班 · 手动 B 班</p>
+
+      <div class="seg-group" id="rateModeGroup">
+        <button class="seg-btn active" data-rate-mode="realtime">实时每分钟</button>
+        <button class="seg-btn" data-rate-mode="shift_avg">本班均速/分</button>
+        <button class="seg-btn" data-rate-mode="month_avg">本月均速/分</button>
+      </div>
+
+      <div class="hero-box">
+        <div class="hero-num" id="heroNum">¥0.0000</div>
+        <div class="hero-unit" id="heroUnit">当前每分钟收益</div>
+        <div class="hero-detail" id="heroDetail">正在加载规则...</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="stat-box">
+          <div class="stat-label">基准时薪 / 1.5x / 2.0x</div>
+          <div class="stat-val" id="hourlySummary">¥17.24 /h</div>
+          <div class="stat-sub" id="perMinSummary">1x ¥0.2874 · 1.5x ¥0.4310 · 2x ¥0.5747 /分</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">今日班次与状态</div>
+          <div class="stat-val" id="todayShiftType">--</div>
+          <div class="stat-sub" id="todayShiftWindow">--</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">本班次已累计收益</div>
+          <div class="stat-val" id="shiftEarned">¥0.00</div>
+          <div class="stat-sub" id="shiftProgressSub">已工作 0 分钟</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">本月预估总收益</div>
+          <div class="stat-val" id="monthEstTotal">¥0.00</div>
+          <div class="stat-sub" id="monthBShiftSub">本月 B 班个数：--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <span>排班与倒班自定义</span>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="restWeekday">自定义每周休息日</label>
+          <select id="restWeekday">
+            <option value="5" selected>周五（默认）</option>
+            <option value="0">周日</option>
+            <option value="1">周一</option>
+            <option value="2">周二</option>
+            <option value="3">周三</option>
+            <option value="4">周四</option>
+            <option value="6">周六</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="rotationCycleMonths">自定义倒班周期（月，默认 2）</label>
+          <input id="rotationCycleMonths" type="number" min="1" max="24" step="1" value="2" />
+        </div>
+
+        <div class="field">
+          <label for="rotationAnchor">自定义倒班起始日</label>
+          <input id="rotationAnchor" type="date" />
+        </div>
+
+        <div class="field">
+          <label for="anchorShiftType">起始日班次</label>
+          <select id="anchorShiftType">
+            <option value="day">白班（08:00-17:00，17:00-20:00 加班）</option>
+            <option value="night">晚班（20:00-05:00，05:00-08:00 加班）</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="restShiftFlipMode">遇休息日是否切换班次</label>
+          <select id="restShiftFlipMode">
+            <option value="flip" selected>遇休息日倒班切换（默认）</option>
+            <option value="keep">仅按周期倒班，休息日不切班</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="manualBDays">手动设置本月 B 班个数（天）</label>
+          <input id="manualBDays" type="number" min="0" max="31" step="1" value="5" />
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <span>今日是否请假（请假则当日无夜班津贴与当日收益）</span>
+        <button class="toggle-btn" id="leaveToggleBtn" type="button">未请假</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <span>薪资与津贴自定义</span>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="baseSalary">自定义底薪（元/月）</label>
+          <input id="baseSalary" type="number" min="0" step="50" value="3000" />
+        </div>
+        <div class="field">
+          <label for="workDaysBase">折算天数（默认 21.75 天）</label>
+          <input id="workDaysBase" type="number" min="1" max="31" step="0.05" value="21.75" />
+        </div>
+        <div class="field">
+          <label for="nightAllowance">夜班津贴（元/晚班天）</label>
+          <input id="nightAllowance" type="number" min="0" step="5" value="20" />
+        </div>
+        <div class="field">
+          <label for="perfAllowance">手动添加绩效 / 其他津贴（元）</label>
+          <input id="perfAllowance" type="number" min="0" step="50" value="0" />
+        </div>
+      </div>
+
+      <p class="note">
+        规则说明：时薪 = 自定义底薪 ÷ (折算天数 × 8)。白班 08:00–17:00 为 1 倍，17:00–20:00 为 1.5 倍；晚班 20:00–05:00 为 1 倍，05:00–08:00 为 1.5 倍；周末（周六、周日）按 2 倍计算。倒班周期、起始日、班次及遇休息日是否切换均可自定义；B 班个数按“手动设置本月 B 班个数”计算。所有设置自动保存在本地浏览器。
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "factory_income_tracker_v2";
+
+    const defaultState = {
+      rateMode: "realtime",
+      restWeekday: 5, // 0=Sun .. 5=Fri, 6=Sat
+      rotationCycleMonths: 2,
+      rotationAnchor: "2026-11-21",
+      anchorShiftType: "day",
+      restShiftFlipMode: "flip",
+      manualBDays: 5,
+      isOnLeave: false,
+      baseSalary: 3000,
+      workDaysBase: 21.75,
+      nightAllowance: 20,
+      perfAllowance: 0
+    };
+
+    let state = { ...defaultState };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          state = { ...defaultState, ...JSON.parse(raw) };
+        }
+      } catch (e) {}
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {}
+    }
+
+    function syncInputsFromState() {
+      document.querySelectorAll("#rateModeGroup .seg-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.rateMode === state.rateMode);
+      });
+      document.getElementById("restWeekday").value = String(state.restWeekday);
+      document.getElementById("rotationCycleMonths").value = String(state.rotationCycleMonths);
+      document.getElementById("rotationAnchor").value = state.rotationAnchor;
+      document.getElementById("anchorShiftType").value = state.anchorShiftType;
+      document.getElementById("restShiftFlipMode").value = state.restShiftFlipMode;
+      document.getElementById("manualBDays").value = String(state.manualBDays);
+
+      const leaveBtn = document.getElementById("leaveToggleBtn");
+      leaveBtn.textContent = state.isOnLeave ? "已请假（无津贴）" : "未请假";
+      leaveBtn.classList.toggle("on", !!state.isOnLeave);
+
+      document.getElementById("baseSalary").value = String(state.baseSalary);
+      document.getElementById("workDaysBase").value = String(state.workDaysBase);
+      document.getElementById("nightAllowance").value = String(state.nightAllowance);
+      document.getElementById("perfAllowance").value = String(state.perfAllowance);
+    }
+
+    function bindEvents() {
+      document.querySelectorAll("#rateModeGroup .seg-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.rateMode = btn.dataset.rateMode;
+          saveState();
+          syncInputsFromState();
+          render();
+        });
+      });
+
+      document.getElementById("restWeekday").addEventListener("change", e => {
+        state.restWeekday = Number(e.target.value);
+        saveState();
+        render();
+      });
+
+      document.getElementById("rotationCycleMonths").addEventListener("input", e => {
+        const val = Math.max(1, Math.floor(Number(e.target.value) || 1));
+        state.rotationCycleMonths = val;
+        saveState();
+        render();
+      });
+
+      document.getElementById("rotationAnchor").addEventListener("change", e => {
+        if (e.target.value) {
+          state.rotationAnchor = e.target.value;
+          saveState();
+          render();
+        }
+      });
+
+      document.getElementById("anchorShiftType").addEventListener("change", e => {
+        state.anchorShiftType = e.target.value;
+        saveState();
+        render();
+      });
+
+      document.getElementById("restShiftFlipMode").addEventListener("change", e => {
+        state.restShiftFlipMode = e.target.value;
+        saveState();
+        render();
+      });
+
+      document.getElementById("manualBDays").addEventListener("input", e => {
+        state.manualBDays = Math.max(0, Math.floor(Number(e.target.value) || 0));
+        saveState();
+        render();
+      });
+
+      document.getElementById("leaveToggleBtn").addEventListener("click", () => {
+        state.isOnLeave = !state.isOnLeave;
+        saveState();
+        syncInputsFromState();
+        render();
+      });
+
+      ["baseSalary", "workDaysBase", "nightAllowance", "perfAllowance"].forEach(id => {
+        document.getElementById(id).addEventListener("input", e => {
+          const val = Number(e.target.value);
+          state[id] = Number.isFinite(val) && val >= 0 ? val : 0;
+          saveState();
+          render();
+        });
+      });
+    }
+
+    function getShiftForDate(dateObj, restWeekday, cycleMonths, anchorDateStr, anchorShiftType, restShiftFlipMode) {
+      const current = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+      const parts = (anchorDateStr || "2026-11-21").split("-").map(Number);
+      const anchor = new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1);
+
+      const safeCycle = Math.max(1, Number(cycleMonths) || 2);
+      const monthDiff =
+        (current.getFullYear() - anchor.getFullYear()) * 12 +
+        (current.getMonth() - anchor.getMonth());
+      const cycleBlocks = Math.floor(monthDiff / safeCycle);
+
+      let baseShift = anchorShiftType;
+      if (Math.abs(cycleBlocks) % 2 === 1) {
+        baseShift = baseShift === "day" ? "night" : "day";
+      }
+
+      let restCrossings = 0;
+      if (restShiftFlipMode === "flip") {
+        const msPerDay = 86400000;
+        const dayDiff = Math.round((current.getTime() - anchor.getTime()) / msPerDay);
+        if (dayDiff > 0) {
+          for (let i = 1; i <= dayDiff; i++) {
+            const d = new Date(anchor.getTime() + i * msPerDay);
+            if (d.getDay() === restWeekday) {
+              restCrossings++;
+            }
+          }
+        } else if (dayDiff < 0) {
+          for (let i = 0; i > dayDiff; i--) {
+            const d = new Date(anchor.getTime() + i * msPerDay);
+            if (d.getDay() === restWeekday) {
+              restCrossings++;
+            }
+          }
+        }
+      }
+
+      const finalShift = restCrossings % 2 === 1
+        ? (baseShift === "day" ? "night" : "day")
+        : baseShift;
+
+      const isRestDay = current.getDay() === restWeekday;
+
+      return {
+        shiftType: finalShift,
+        isRestDay
+      };
+    }
+
+    function evaluateMinute(minuteStartMs, hourlyRate, restWeekday, cycleMonths, anchorDateStr, anchorShiftType, restShiftFlipMode, isOnLeave) {
+      if (isOnLeave) {
+        return { ratePerMin: 0, multiplier: 0, label: "已请假", isWork: false };
+      }
+
+      const d = new Date(minuteStartMs);
+      const dow = d.getDay();
+      const minutesOfDay = d.getHours() * 60 + d.getMinutes();
+
+      let effectiveDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      let isPrevNightTail = false;
+      if (minutesOfDay < 8 * 60) {
+        const prevDate = new Date(effectiveDate.getTime() - 86400000);
+        const prevInfo = getShiftForDate(prevDate, restWeekday, cycleMonths, anchorDateStr, anchorShiftType, restShiftFlipMode);
+        if (prevInfo.shiftType === "night" && !prevInfo.isRestDay) {
+          effectiveDate = prevDate;
+          isPrevNightTail = true;
+        }
+      }
+
+      const info = getShiftForDate(effectiveDate, restWeekday, cycleMonths, anchorDateStr, anchorShiftType, restShiftFlipMode);
+      if (info.isRestDay) {
+        return { ratePerMin: 0, multiplier: 0, label: "休息日", isWork: false };
+      }
+
+      const isWeekend = dow === 0 || dow === 6;
+      let multiplier = 0;
+      let label = "非工作时段";
+
+      if (info.shiftType === "day") {
+        if (minutesOfDay >= 8 * 60 && minutesOfDay < 17 * 60) {
+          multiplier = isWeekend ? 2.0 : 1.0;
+          label = isWeekend ? "周末白班(2x)" : "白班正常(1x)";
+        } else if (minutesOfDay >= 17 * 60 && minutesOfDay < 20 * 60) {
+          multiplier = isWeekend ? 2.0 : 1.5;
+          label = isWeekend ? "周末加班(2x)" : "平时加班(1.5x)";
+        }
+      } else {
+        if (!isPrevNightTail && minutesOfDay >= 20 * 60) {
+          multiplier = isWeekend ? 2.0 : 1.0;
+          label = isWeekend ? "周末晚班(2x)" : "晚班正常(1x)";
+        } else if (isPrevNightTail && minutesOfDay < 5 * 60) {
+          multiplier = isWeekend ? 2.0 : 1.0;
+          label = isWeekend ? "周末晚班(2x)" : "晚班正常(1x)";
+        } else if (isPrevNightTail && minutesOfDay >= 5 * 60 && minutesOfDay < 8 * 60) {
+          multiplier = isWeekend ? 2.0 : 1.5;
+          label = isWeekend ? "周末加班(2x)" : "晚班加班(1.5x)";
+        }
+      }
+
+      const ratePerMin = (hourlyRate * multiplier) / 60;
+      return {
+        ratePerMin,
+        multiplier,
+        label,
+        isWork: multiplier > 0,
+        shiftType: info.shiftType
+      };
+    }
+
+    function fmtMoney(num, digits = 2) {
+      return `¥${(Number(num) || 0).toFixed(digits)}`;
+    }
+
+    function render() {
+      const now = new Date();
+      const stdHours = Math.max(1, (Number(state.workDaysBase) || 21.75) * 8);
+      const hourlyRate = (Number(state.baseSalary) || 0) / stdHours;
+
+      const perMin1x = hourlyRate / 60;
+      const perMin15x = (hourlyRate * 1.5) / 60;
+      const perMin2x = (hourlyRate * 2.0) / 60;
+
+      const currentMinuteStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes(),
+        0,
+        0
+      ).getTime();
+
+      const curEval = evaluateMinute(
+        currentMinuteStart,
+        hourlyRate,
+        state.restWeekday,
+        state.rotationCycleMonths,
+        state.rotationAnchor,
+        state.anchorShiftType,
+        state.restShiftFlipMode,
+        state.isOnLeave
+      );
+
+      const todayInfo = getShiftForDate(
+        now,
+        state.restWeekday,
+        state.rotationCycleMonths,
+        state.rotationAnchor,
+        state.anchorShiftType,
+        state.restShiftFlipMode
+      );
+
+      const dayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+      let todayEarned = 0;
+      let todayWorkMins = 0;
+      for (let t = dayStartMs; t < currentMinuteStart; t += 60000) {
+        const m = evaluateMinute(
+          t,
+          hourlyRate,
+          state.restWeekday,
+          state.rotationCycleMonths,
+          state.rotationAnchor,
+          state.anchorShiftType,
+          state.restShiftFlipMode,
+          state.isOnLeave
+        );
+        todayEarned += m.ratePerMin;
+        if (m.isWork) todayWorkMins++;
+      }
+      const secFraction = now.getSeconds() / 60;
+      todayEarned += curEval.ratePerMin * secFraction;
+      if (curEval.isWork) todayWorkMins += secFraction;
+
+      const shiftAvgPerMin = todayWorkMins > 0 ? todayEarned / todayWorkMins : 0;
+
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const monthStartMs = new Date(year, month, 1, 0, 0, 0, 0).getTime();
+
+      let monthEarnedSoFar = 0;
+      let monthWorkMinsSoFar = 0;
+      for (let t = monthStartMs; t < currentMinuteStart; t += 60000) {
+        const m = evaluateMinute(
+          t,
+          hourlyRate,
+          state.restWeekday,
+          state.rotationCycleMonths,
+          state.rotationAnchor,
+          state.anchorShiftType,
+          state.restShiftFlipMode,
+          state.isOnLeave
+        );
+        monthEarnedSoFar += m.ratePerMin;
+        if (m.isWork) monthWorkMinsSoFar++;
+      }
+      monthEarnedSoFar += curEval.ratePerMin * secFraction;
+      if (curEval.isWork) monthWorkMinsSoFar += secFraction;
+
+      let monthScheduleIncome = 0;
+      let nightShiftDaysCount = 0;
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(year, month, day);
+        const dInfo = getShiftForDate(
+          d,
+          state.restWeekday,
+          state.rotationCycleMonths,
+          state.rotationAnchor,
+          state.anchorShiftType,
+          state.restShiftFlipMode
+        );
+        if (!dInfo.isRestDay && dInfo.shiftType === "night" && !state.isOnLeave) {
+          nightShiftDaysCount++;
+        }
+        const dStart = new Date(year, month, day, 0, 0, 0, 0).getTime();
+        for (let mIdx = 0; mIdx < 1440; mIdx++) {
+          const ev = evaluateMinute(
+            dStart + mIdx * 60000,
+            hourlyRate,
+            state.restWeekday,
+            state.rotationCycleMonths,
+            state.rotationAnchor,
+            state.anchorShiftType,
+            state.restShiftFlipMode,
+            state.isOnLeave
+          );
+          monthScheduleIncome += ev.ratePerMin;
+        }
+      }
+
+      const nightAllowanceTotal = nightShiftDaysCount * (Number(state.nightAllowance) || 0);
+      const perfTotal = Number(state.perfAllowance) || 0;
+      const monthEstTotal = monthScheduleIncome + nightAllowanceTotal + perfTotal;
+      const monthAvgPerMin = monthWorkMinsSoFar > 0 ? monthEarnedSoFar / monthWorkMinsSoFar : 0;
+
+      const bShiftCount = Math.max(0, Math.floor(Number(state.manualBDays) || 0));
+
+      document.getElementById("clockText").textContent = now.toLocaleString("zh-CN", {
+        hour12: false
+      });
+
+      const badge = document.getElementById("statusBadge");
+      badge.className = "badge";
+      if (state.isOnLeave) {
+        badge.classList.add("rest");
+        badge.textContent = "今日请假";
+      } else if (todayInfo.isRestDay) {
+        badge.classList.add("rest");
+        badge.textContent = "今日休息日";
+      } else if (curEval.multiplier === 2.0) {
+        badge.classList.add("ot20");
+        badge.textContent = "2.0 倍周末加班中";
+      } else if (curEval.multiplier === 1.5) {
+        badge.classList.add("ot15");
+        badge.textContent = "1.5 倍平时加班中";
+      } else if (curEval.multiplier === 1.0) {
+        badge.textContent = "1.0 倍正常时段中";
+      } else {
+        badge.textContent = "当前非工作时段";
+      }
+
+      const heroNum = document.getElementById("heroNum");
+      const heroUnit = document.getElementById("heroUnit");
+      const heroDetail = document.getElementById("heroDetail");
+
+      if (state.rateMode === "realtime") {
+        heroNum.textContent = `${fmtMoney(curEval.ratePerMin, 4)}/分`;
+        heroUnit.textContent = `实时每分钟收益 · ${curEval.label}`;
+        heroDetail.textContent = `折合每秒 ${fmtMoney(curEval.ratePerMin / 60, 5)} · 当前倍率 ${curEval.multiplier.toFixed(1)}x`;
+      } else if (state.rateMode === "shift_avg") {
+        heroNum.textContent = `${fmtMoney(shiftAvgPerMin, 4)}/分`;
+        heroUnit.textContent = "今日实际工作分钟均速";
+        heroDetail.textContent = `今日累计 ${fmtMoney(todayEarned, 2)} · 有效工作 ${todayWorkMins.toFixed(1)} 分钟`;
+      } else {
+        heroNum.textContent = `${fmtMoney(monthAvgPerMin, 4)}/分`;
+        heroUnit.textContent = "本月已工作分钟均速";
+        heroDetail.textContent = `本月已累计工时 ${fmtMoney(monthEarnedSoFar, 2)} · 整月预估 ${fmtMoney(monthEstTotal, 2)}（含津贴与绩效）`;
+      }
+
+      document.getElementById("hourlySummary").textContent = `${fmtMoney(hourlyRate, 2)} /h`;
+      document.getElementById("perMinSummary").textContent =
+        `1x ${fmtMoney(perMin1x, 4)} · 1.5x ${fmtMoney(perMin15x, 4)} · 2x ${fmtMoney(perMin2x, 4)} /分`;
+
+      const weekNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+      if (state.isOnLeave) {
+        document.getElementById("todayShiftType").textContent = "已请假";
+        document.getElementById("todayShiftWindow").textContent = `${weekNames[now.getDay()]} · 当日无夜班津贴`;
+      } else if (todayInfo.isRestDay) {
+        document.getElementById("todayShiftType").textContent = "休息日";
+        document.getElementById("todayShiftWindow").textContent = `${weekNames[now.getDay()]} · 休息日状态`;
+      } else if (todayInfo.shiftType === "day") {
+        document.getElementById("todayShiftType").textContent = "白班";
+        document.getElementById("todayShiftWindow").textContent = "08:00–17:00(1x) · 17:00–20:00(1.5x)";
+      } else {
+        document.getElementById("todayShiftType").textContent = "晚班";
+        document.getElementById("todayShiftWindow").textContent = "20:00–05:00(1x) · 05:00–08:00(1.5x)";
+      }
+
+      document.getElementById("shiftEarned").textContent = fmtMoney(todayEarned, 2);
+      document.getElementById("shiftProgressSub").textContent = `今日有效工作 ${todayWorkMins.toFixed(1)} 分钟`;
+
+      document.getElementById("monthEstTotal").textContent = fmtMoney(monthEstTotal, 2);
+      document.getElementById("monthBShiftSub").textContent =
+        `本月 B 班个数：${bShiftCount} 天（手动设置）· 夜班津贴 ${fmtMoney(nightAllowanceTotal, 0)}`;
+    }
+
+    loadState();
+    syncInputsFromState();
+    bindEvents();
+    render();
+    setInterval(render, 1000);
+  </script>
+</body>
+</html>
